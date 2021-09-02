@@ -22,8 +22,8 @@ mod reserve_bank {
         balances: StorageHashMap<AccountId, Balance>,
         /// Mapping of the token amount which an account is allowed to withdraw
         /// from another account.
-        _a: StorageHashMap<AccountId, Option<Vec<(AccountId, Balance)>>>,
-        _b: StorageHashMap<AccountId, Option<Vec<(AccountId, Balance)>>>
+        _a: StorageHashMap<AccountId, Vec<(AccountId, Balance)>>,
+        _b: StorageHashMap<AccountId, Vec<(AccountId, Balance)>>
     }
 
     /// Event emitted when a token transfer occurs.
@@ -110,16 +110,14 @@ mod reserve_bank {
 
         #[ink(message)]
         pub fn borrowed_balance_of(&self, user_id: AccountId) -> Option<Balance> {
-            let a= self._b.get(&user_id).unwrap_or(&None).clone();
+            let a= self._b.get(&user_id);
             match a {
                 Some(_a) => {
-                    let mut t = None;
-                    _a.into_iter().for_each(|(a, b)| { 
-                        if a == user_id {
-                            t = Some(b);
-                        }
+                    let mut t = 0;
+                    _a.into_iter().for_each(|(_, b)| { 
+                        t += b;
                     });
-                    t
+                    Some(t)
                 }
                 None => None,
             }
@@ -143,6 +141,31 @@ mod reserve_bank {
 
 
         fn increase_borrow_balance(&mut self, from: AccountId, to: AccountId, value: Balance) {
+            let x = self._b.get(&to);
+            match x {
+                Some(_x) => {
+                    let a: Vec<(AccountId, Balance)> = _x.clone();
+
+                    let mut tem: Vec<(AccountId, Balance)> = a.clone();
+                    let mut found = false;
+                    let b: Vec<(AccountId, Balance)> = a.into_iter().map(|(aa, bb)| {
+                        if aa == from {
+                            found = true;
+                            return (aa, bb + value);
+                        }
+                        return (aa, value);
+                    }).collect();
+
+                    if !found {
+                        tem.push((from, value));
+                        self._b.insert(to, tem);
+                    } else {
+                        self._b.insert(to, b);
+                    }
+
+                }
+                None => {}
+            }
             // increase borrow balance from to
             // cause we have send it to to.
         }
