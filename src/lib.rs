@@ -134,9 +134,18 @@ mod reserve_bank {
             self.balances.insert(user_id, ori - value);
         }
 
+        fn increase(&mut self, user_id: AccountId, ori: Balance, value: Balance) {
+            self.balances.insert(user_id, ori + value);
+        }
+
         fn decrease_balance(&mut self, from: AccountId, value: Balance) {
             let b: Balance = self.balance_of(from);
             self.deduce(from, b, value);
+        }
+
+        fn increase_balance(&mut self, user_id: AccountId, value: Balance) {
+            let b: Balance = self.balance_of(user_id);
+            self.increase(user_id, b, value);
         }
 
 
@@ -164,10 +173,12 @@ mod reserve_bank {
                     }
 
                 }
-                None => {}
+                None => {
+                    let mut x = Vec::new();
+                    x.push((from, value));
+                    self._b.insert(to, x);
+                }
             }
-            // increase borrow balance from to
-            // cause we have send it to to.
         }
         
         #[ink(message)]
@@ -177,12 +188,34 @@ mod reserve_bank {
 
         #[ink(message)]
         pub fn send_documents(&mut self, to: AccountId, value: Balance, file: Vec<u8>) -> Result<()> {
-            // let _self = self.env().caller();
-            // let a = self.borrowers.get(&_self).copied().unwrap();
-            // let b: AccountId = a.0;
-            // let m = self.balances.get(&b).copied().unwrap();
-            // self.balances.insert(b, m + value);
-            // self.borrowers.insert(_self, (b, 0));
+            // check if self has borrowed money from others
+            // if borrowed to will pay money to the borrowed users.
+            // if not borrowed then directly pay to self
+            let _self = self.env().caller();
+            let x = self._b.get(&_self);
+            match x {
+                Some(borrows) => {
+                    let mut dbalance = value;
+                    let _b = borrows.clone();
+                    let _x: Vec<(AccountId, Balance)> = _b.into_iter().map(|(y, z)| {
+                        if dbalance > z {
+                            dbalance = dbalance - z;
+                            return (y, 0);
+                        } else {
+                            dbalance = 0;
+                            return (y, dbalance - z);
+                        }
+                    })
+                    .filter(|f| { f.1 != 0 })
+                    .collect();
+
+                    self._b.insert(_self, _x);
+                }
+                None => {
+                    self.decrease_balance(to, value);
+                    self.increase_balance(_self, value);
+                }
+            }
             Ok(())
         }
 
