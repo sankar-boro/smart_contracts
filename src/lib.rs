@@ -186,9 +186,8 @@ mod reserve_bank {
         }
 
         #[ink(message)]
-        pub fn send_documents(&mut self, to: AccountId, value: Balance, file: Vec<u8>) -> Result<()> {
-            let _self = self.env().caller();
-            let x = self._b.get(&_self);
+        pub fn send_documents(&mut self, _self: AccountId, to: AccountId, value: Balance, file: Vec<u8>) -> Result<()> {
+            let x: Option<&Vec<(AccountId, Balance)>> = self._b.get(&_self);
             match x {
                 Some(borrows) => {
                     let mut dbalance = value;
@@ -199,7 +198,7 @@ mod reserve_bank {
                             return (y, 0);
                         } else {
                             dbalance = 0;
-                            return (y, dbalance - z);
+                            return (y, z - dbalance);
                         }
                     })
                     .filter(|f| { f.1 != 0 })
