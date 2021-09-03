@@ -192,13 +192,16 @@ mod reserve_bank {
                     let mut dbalance = value;
                     let _b:Vec<(AccountId, Balance)> = borrows.clone();
                     let _x: Vec<(AccountId, Balance)> = _b.into_iter().map(|(y, z)| {
-                        if dbalance == z {
+                        if dbalance == z && dbalance != 0 {
+                            self.increase_balance(y, dbalance);
                             dbalance = 0;
                             return (y, 0);
                         } else if dbalance > z {
+                            self.increase_balance(y, z);
                             dbalance = dbalance - z;
                             return (y, 0);
                         } else if dbalance < z {
+                            self.increase_balance(y, dbalance);
                             return (y, z - dbalance);
                         } else {
                             return (y, z);
