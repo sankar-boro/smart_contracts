@@ -13,20 +13,14 @@ mod reserve_bank {
         Lazy,
     };
 
-    /// A simple ERC-20 contract.
     #[ink(storage)]
     pub struct ReserveBank {
-        /// Total token supply.
         reserved_balance: Lazy<Balance>,
-        /// Mapping from owner to number of owned token.
         balances: StorageHashMap<AccountId, Balance>,
-        /// Mapping of the token amount which an account is allowed to withdraw
-        /// from another account.
         _a: StorageHashMap<AccountId, Vec<(AccountId, Balance)>>,
         _b: StorageHashMap<AccountId, Vec<(AccountId, Balance)>>
     }
 
-    /// Event emitted when a token transfer occurs.
     #[ink(event)]
     pub struct Transfer {
         #[ink(topic)]
@@ -36,7 +30,15 @@ mod reserve_bank {
         value: Balance,
     }
 
-    /// Event emitted when a token transfer occurs.
+    #[ink(event)]
+    pub struct DocumentTransfer {
+        #[ink(topic)]
+        from: Option<AccountId>,
+        #[ink(topic)]
+        to: Option<AccountId>,
+        value: Balance,
+    }
+
     #[ink(event)]
     pub struct Borrow {
         #[ink(topic)]
@@ -46,8 +48,6 @@ mod reserve_bank {
         value: Balance,
     }
 
-    /// Event emitted when an approval occurs that `spender` is allowed to withdraw
-    /// up to the amount of `value` tokens from `owner`.
     #[ink(event)]
     pub struct Approval {
         #[ink(topic)]
@@ -57,21 +57,16 @@ mod reserve_bank {
         value: Balance,
     }
 
-    /// The ERC-20 error types.
     #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
-        /// Returned if not enough balance to fulfill a request is available.
         InsufficientBalance,
-        /// Returned if not enough allowance to fulfill a request is available.
         InsufficientAllowance,
     }
 
-    /// The ERC-20 result type.
     pub type Result<T> = core::result::Result<T, Error>;
 
     impl ReserveBank {
-        /// Creates a new ERC-20 contract with the specified initial supply.
         #[ink(constructor)]
         pub fn new(reserved_balance: Balance) -> Self {
             let caller = Self::env().caller();
@@ -91,7 +86,6 @@ mod reserve_bank {
             instance
         }
 
-        /// Returns the total token supply.
         #[ink(message)]
         pub fn reserved_balance(&self) -> Balance {
             *self.reserved_balance
@@ -127,6 +121,11 @@ mod reserve_bank {
         pub fn borrow(&mut self, from: AccountId, to: AccountId, value: Balance) -> Result<()> {
             self.decrease_balance(from, value);
             self.increase_borrow_balance(from, to, value);
+            self.env().emit_event(Borrow {
+                from: Some(from),
+                to: Some(to),
+                value,
+            });
             Ok(())
         }
 
@@ -188,9 +187,6 @@ mod reserve_bank {
 
         #[ink(message)]
         pub fn send_documents(&mut self, to: AccountId, value: Balance, file: Vec<u8>) -> Result<()> {
-            // check if self has borrowed money from others
-            // if borrowed to will pay money to the borrowed users.
-            // if not borrowed then directly pay to self
             let _self = self.env().caller();
             let x = self._b.get(&_self);
             match x {
@@ -216,6 +212,11 @@ mod reserve_bank {
                     self.increase_balance(_self, value);
                 }
             }
+            self.env().emit_event(DocumentTransfer {
+                from: Some(_self),
+                to: Some(to),
+                value,
+            });
             Ok(())
         }
 
@@ -237,27 +238,6 @@ mod reserve_bank {
                 to: Some(to),
                 value,
             });
-            Ok(())
-        }
-
-        fn borrow_from_to(
-            &mut self,
-            from: AccountId,
-            to: AccountId,
-            value: Balance,
-        ) -> Result<()> {
-            // let from_balance = self.balance_of(from);
-            // if from_balance < value {
-            //     return Err(Error::InsufficientBalance)
-            // }
-            // self.balances.insert(from, from_balance - value);
-            
-            // self.borrowers.insert(to, (from, value));
-            // self.env().emit_event(Borrow {
-            //     from: Some(from),
-            //     to: Some(to),
-            //     value,
-            // });
             Ok(())
         }
 
