@@ -4,7 +4,6 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod reserve_bank {
-    use core::option::Option::{ self, None };
     use ink_prelude::vec::Vec;
     use ink_storage::{
         collections::{
@@ -104,7 +103,7 @@ mod reserve_bank {
 
         #[ink(message)]
         pub fn borrowed_balance_of(&self, user_id: AccountId) -> Balance {
-            let a: Option<&Vec<(AccountId, Balance)>>= self._b.get(&user_id);
+            let a: Option<&Vec<(AccountId, Balance)>> = self._b.get(&user_id);
             match a {
                 Some(_a) => {
                     let mut t: Balance = 0;
@@ -149,7 +148,7 @@ mod reserve_bank {
 
 
         fn increase_borrow_balance(&mut self, from: AccountId, to: AccountId, value: Balance) {
-            let x = self._b.get(&to);
+            let x: Option<&Vec<(AccountId, Balance)>> = self._b.get(&to);
             match x {
                 Some(_x) => {
                     let a: Vec<(AccountId, Balance)> = _x.clone();
@@ -191,19 +190,22 @@ mod reserve_bank {
             match x {
                 Some(borrows) => {
                     let mut dbalance = value;
-                    let _b = borrows.clone();
+                    let _b:Vec<(AccountId, Balance)> = borrows.clone();
                     let _x: Vec<(AccountId, Balance)> = _b.into_iter().map(|(y, z)| {
-                        if dbalance > z {
+                        if dbalance == z {
+                            dbalance = 0;
+                            return (y, 0);
+                        } else if dbalance > z {
                             dbalance = dbalance - z;
                             return (y, 0);
-                        } else {
-                            dbalance = 0;
+                        } else if dbalance < z {
                             return (y, z - dbalance);
+                        } else {
+                            return (y, z);
                         }
                     })
-                    .filter(|f| { f.1 != 0 })
+                    .filter(|(_f1, _f2)| { *_f2 != 0 })
                     .collect();
-
                     self._b.insert(_self, _x);
                 }
                 None => {
