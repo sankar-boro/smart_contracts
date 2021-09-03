@@ -17,7 +17,7 @@ mod reserve_bank {
     pub struct ReserveBank {
         reserved_balance: Lazy<Balance>,
         balances: StorageHashMap<AccountId, Balance>,
-        _a: StorageHashMap<AccountId, Vec<(AccountId, Balance)>>,
+        // _a: StorageHashMap<AccountId, Vec<(AccountId, Balance)>>,
         _b: StorageHashMap<AccountId, Vec<(AccountId, Balance)>>
     }
 
@@ -75,7 +75,7 @@ mod reserve_bank {
             let instance = Self {
                 reserved_balance: Lazy::new(reserved_balance),
                 balances,
-                _a: StorageHashMap::new(),
+                // _a: StorageHashMap::new(),
                 _b: StorageHashMap::new(),
             };
             Self::env().emit_event(Transfer {
@@ -103,17 +103,17 @@ mod reserve_bank {
         }
 
         #[ink(message)]
-        pub fn borrowed_balance_of(&self, user_id: AccountId) -> Option<Balance> {
-            let a= self._b.get(&user_id);
+        pub fn borrowed_balance_of(&self, user_id: AccountId) -> Balance {
+            let a: Option<&Vec<(AccountId, Balance)>>= self._b.get(&user_id);
             match a {
                 Some(_a) => {
-                    let mut t = 0;
+                    let mut t: Balance = 0;
                     _a.into_iter().for_each(|(_, b)| { 
                         t += b;
                     });
-                    Some(t)
+                    t
                 }
-                None => None,
+                None => 0,
             }
         }
 
@@ -173,7 +173,7 @@ mod reserve_bank {
 
                 }
                 None => {
-                    let mut x = Vec::new();
+                    let mut x: Vec<(AccountId, Balance)> = Vec::new();
                     x.push((from, value));
                     self._b.insert(to, x);
                 }
